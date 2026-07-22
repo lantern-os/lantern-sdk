@@ -3,8 +3,8 @@
 **Phase:** 0 (Foundations) — design only.
 
 ## Done
-- SDK responsibilities and least-privilege-by-default stance drafted ([ARCHITECTURE.md](./ARCHITECTURE.md)).
-- Threat model drafted.
+- SDK responsibilities and least-privilege-by-default stance drafted and reviewed ([ARCHITECTURE.md](./ARCHITECTURE.md)).
+- Threat model drafted and reviewed.
 
 ## Next
 - Design the capability manifest format.
@@ -12,4 +12,3 @@
 
 ## Blocked on
 - Stable WIT interfaces from [`lantern-runtime`](https://github.com/lantern-os/lantern-runtime).
-- Capability model acceptance ([RFC-0003](https://github.com/lantern-os/lantern-rfcs/blob/main/rfcs/0003-capability-model.md)).
