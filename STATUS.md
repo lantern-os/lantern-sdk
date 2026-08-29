@@ -7,15 +7,20 @@
 - Threat model drafted and reviewed.
 
 ## Next
-- **Design the capability manifest format** — now unblocked. [RFC-0014](https://github.com/lantern-os/lantern-rfcs/blob/main/rfcs/0014-wit-handle-capability-mapping.md)/[ADR-0018](https://github.com/lantern-os/lantern-rfcs/blob/main/adr/0018-wit-handle-capability-mapping.md)
-  fix the *runtime-side contract* this must satisfy: one badge per resource-scoped grant
-  (e.g. a `lantern:crypto/keystore` `key`), one yes/no per link-scoped facility (e.g.
-  `monotonic-clock`). The file format a developer authors, and how it compiles to the
-  `GrantManifest` [`lantern-runtime`](https://github.com/lantern-os/lantern-runtime) consumes, is this crate's to design —
-  likely its own RFC.
-- Phase 2: SDK v0 — build a confined Wasm app, declare capabilities in a manifest, run it
-  against `lantern-runtime`'s `build_linker`. `lantern-runtime`'s `wit/host.wit` is the first
-  interface set to bind against.
+- **The capability manifest format is drafted** — [RFC-0015](https://github.com/lantern-os/lantern-rfcs/blob/main/rfcs/0015-capability-manifest-format.md)
+  (Draft): a TOML `lantern.capabilities.toml` keyed by WIT interface, two declaration
+  shapes mirroring RFC-0014's two mapping shapes (resource-scoped = ordered role list with
+  `ops` + mandatory `justification`; link-scoped = present-or-absent + `justification`),
+  abstract roles bound to concrete objects at launch, declaration order as the
+  `keystore.open(slot)` index, the WIT `world` generated *from* the manifest, and a
+  combined-digest signature binding manifest to `.cwasm`. Awaiting review/acceptance
+  before implementation.
+- After acceptance: the `lantern-sdk` manifest parser/validator + WIT-`world` generator,
+  then SDK v0 — build a confined Wasm app, declare capabilities in a manifest, run it
+  against `lantern-runtime`'s `build_linker`. `lantern-runtime`'s `wit/host.wit` is the
+  first interface set to bind against.
+- The launch-time *binder* and consent UX (resolve a manifest `role` to a concrete object)
+  are `lantern-shell`'s, not this crate's (RFC-0015 scope).
 
 ## Blocked on
 - ~~Stable WIT interfaces from [`lantern-runtime`](https://github.com/lantern-os/lantern-runtime).~~ Lifted —
