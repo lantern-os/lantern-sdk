@@ -65,17 +65,77 @@ pub fn verify_cwasm(
     signing::verify(public_key, &digest, signature).map_err(|_| PackageError::BadSignature)
 }
 
+// -------------------------------------------------------------------------------------
+// The on-disk package container
+// -------------------------------------------------------------------------------------
+
+/// `LPK1` + u32-LE `len(manifest)` + manifest + u32-LE `len(cwasm)` + cwasm + 64-byte sig.
+/// A single distributable file holding both halves and the signature over their digest.
+const MAGIC: &[u8; 4] = b"LPK1";
+
+/// Serialises `{ manifest, cwasm, signature }` into one `.lpkg` blob.
+pub fn encode_package(
+    manifest_bytes: &[u8],
+    cwasm_bytes: &[u8],
+    signature: &[u8; SIGNATURE_LEN],
+) -> Vec<u8> {
+    let mut out = Vec::with_capacity(4 + 4 + manifest_bytes.len() + 4 + cwasm_bytes.len() + SIGNATURE_LEN);
+    out.extend_from_slice(MAGIC);
+    out.extend_from_slice(&(manifest_bytes.len() as u32).to_le_bytes());
+    out.extend_from_slice(manifest_bytes);
+    out.extend_from_slice(&(cwasm_bytes.len() as u32).to_le_bytes());
+    out.extend_from_slice(cwasm_bytes);
+    out.extend_from_slice(signature);
+    out
+}
+
+/// The three parts of a `.lpkg` blob. **Does not verify the signature** — call
+/// [`verify_package`] with the caller's trusted public key.
+pub struct Package {
+    pub manifest_bytes: Vec<u8>,
+    pub cwasm_bytes: Vec<u8>,
+    pub signature: [u8; SIGNATURE_LEN],
+}
+
+/// Parses a `.lpkg` blob. Structural only — the signature still needs verifying.
+pub fn decode_package(bytes: &[u8]) -> Result<Package, PackageError> {
+    let mut r = bytes;
+    let take = |r: &mut &[u8], n: usize| -> Result<Vec<u8>, PackageError> {
+        if r.len() < n {
+            return Err(PackageError::Malformed);
+        }
+        let (head, tail) = r.split_at(n);
+        *r = tail;
+        Ok(head.to_vec())
+    };
+    if take(&mut r, 4)? != MAGIC {
+        return Err(PackageError::Malformed);
+    }
+    let mlen = u32::from_le_bytes(take(&mut r, 4)?.try_into().unwrap()) as usize;
+    let manifest_bytes = take(&mut r, mlen)?;
+    let clen = u32::from_le_bytes(take(&mut r, 4)?.try_into().unwrap()) as usize;
+    let cwasm_bytes = take(&mut r, clen)?;
+    let signature: [u8; SIGNATURE_LEN] = take(&mut r, SIGNATURE_LEN)?.try_into().unwrap();
+    if !r.is_empty() {
+        return Err(PackageError::Malformed);
+    }
+    Ok(Package { manifest_bytes, cwasm_bytes, signature })
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum PackageError {
     /// The signature does not verify — the manifest, the `.cwasm`, or the pairing between
     /// them was tampered with, or it was signed under a different key.
     BadSignature,
+    /// The `.lpkg` container is truncated or has a bad magic / length header.
+    Malformed,
 }
 
 impl std::fmt::Display for PackageError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::BadSignature => write!(f, "package signature does not verify"),
+            Self::Malformed => write!(f, "malformed .lpkg container"),
         }
     }
 }

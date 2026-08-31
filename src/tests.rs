@@ -233,11 +233,83 @@ mod package {
         assert_eq!(&d[..32], hash::hash(MANIFEST).as_bytes());
         assert_eq!(&d[32..], hash::hash(CWASM).as_bytes());
     }
+
+    #[test]
+    fn an_lpkg_blob_round_trips() {
+        use crate::package::{decode_package, encode_package, PackageError};
+        let sig = [7u8; 64];
+        let blob = encode_package(MANIFEST, CWASM, &sig);
+        let p = decode_package(&blob).unwrap();
+        assert_eq!(p.manifest_bytes, MANIFEST);
+        assert_eq!(p.cwasm_bytes, CWASM);
+        assert_eq!(p.signature, sig);
+
+        assert!(matches!(decode_package(&blob[..blob.len() - 1]), Err(PackageError::Malformed)));
+        assert!(matches!(decode_package(b"LPK9\0\0\0\0"), Err(PackageError::Malformed)));
+    }
 }
 
 // -------------------------------------------------------------------------------------
 // bind (feature `bind`)
 // -------------------------------------------------------------------------------------
+
+// -------------------------------------------------------------------------------------
+// build (feature `build`)
+// -------------------------------------------------------------------------------------
+
+#[cfg(feature = "build")]
+mod build {
+    use crate::build::{build, BuildError};
+    use crate::package::{decode_package, verify_package};
+    use lantern_crypto::signing::{SigningKey, SEED_LEN};
+
+    /// A component importing exactly `lantern:host/monotonic-clock@0.1.0`.
+    const CLOCK_IMPORTER: &str = r#"
+        (component
+          (import "lantern:host/monotonic-clock@0.1.0" (instance $c
+            (export "now" (func (result u64)))))
+          (core func $now (canon lower (func $c "now")))
+          (core module $m (import "" "now" (func (result i64)))
+            (func (export "run") (result i64) call 0))
+          (core instance $i (instantiate $m (with "" (instance (export "now" (func $now))))))
+          (func (export "run") (result u64) (canon lift (core func $i "run"))))
+    "#;
+
+    const MANIFEST_CLOCK: &str =
+        "[app]\nname = \"clocker\"\nversion = \"1.0.0\"\n[monotonic-clock]\njustification = \"reads the clock\"\n";
+
+    #[test]
+    fn build_produces_a_verifiable_lpkg_when_imports_match_declarations() {
+        let key = SigningKey::from_random_bytes([4u8; SEED_LEN]);
+        let built = build(MANIFEST_CLOCK, CLOCK_IMPORTER.as_bytes(), &key).unwrap();
+
+        let pkg = decode_package(&built.lpkg).unwrap();
+        assert_eq!(pkg.manifest_bytes, MANIFEST_CLOCK.as_bytes());
+        verify_package(&pkg.manifest_bytes, &pkg.cwasm_bytes, &built.verifying_key, &pkg.signature).unwrap();
+    }
+
+    #[test]
+    fn build_rejects_a_component_importing_more_than_the_manifest_declares() {
+        let key = SigningKey::from_random_bytes([4u8; SEED_LEN]);
+        // manifest declares nothing, component imports the clock.
+        let bare = "[app]\nname = \"x\"\nversion = \"1.0.0\"\n";
+        let e = build(bare, CLOCK_IMPORTER.as_bytes(), &key).unwrap_err();
+        assert!(matches!(e, BuildError::UndeclaredImports(v) if v == ["lantern:host/monotonic-clock@0.1.0"]));
+    }
+
+    #[test]
+    fn build_rejects_a_manifest_that_over_asks() {
+        let key = SigningKey::from_random_bytes([4u8; SEED_LEN]);
+        // manifest declares keystore + clock; component imports only the clock.
+        let over = concat!(
+            "[app]\nname = \"x\"\nversion = \"1.0.0\"\n",
+            "[[keystore.key]]\nrole = \"k\"\nops = [\"sign\"]\njustification = \"y\"\n",
+            "[monotonic-clock]\njustification = \"y\"\n",
+        );
+        let e = build(over, CLOCK_IMPORTER.as_bytes(), &key).unwrap_err();
+        assert!(matches!(e, BuildError::DeclaredButNotImported(v) if v == ["lantern:host/keystore@0.1.0"]));
+    }
+}
 
 #[cfg(feature = "bind")]
 mod bind {

@@ -13,9 +13,11 @@
 //!   [`wit::declared_imports`] list (imports can never exceed the manifest).
 //! - [`plan`] — the ordered [`plan::GrantPlan`] a launch binder walks.
 //! - [`package`] — the combined-digest (`BLAKE3(manifest) ‖ BLAKE3(cwasm)`, Ed25519)
-//!   package signing that binds a manifest to its `.cwasm`.
+//!   package signing that binds a manifest to its `.cwasm`, and the `.lpkg` container.
 //! - [`bind`] (feature `bind`) — turn a `GrantPlan` + a binder's decisions into a
 //!   `lantern_runtime::GrantManifest`.
+//! - [`build`] (feature `build`) + the `lantern-sdk` CLI — validate, import-check,
+//!   AOT-compile, sign, and emit a `.lpkg` package.
 //!
 //! **Not in this crate:** the launch-time binder and consent UX (`lantern-shell`'s job —
 //! this crate fixes only the validated manifest it consumes and the `GrantPlan` /
@@ -29,6 +31,9 @@ pub mod wit;
 
 #[cfg(feature = "bind")]
 pub mod bind;
+
+#[cfg(feature = "build")]
+pub mod build;
 
 pub use manifest::{parse, Manifest, ManifestError};
 pub use plan::GrantPlan;

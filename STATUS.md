@@ -19,26 +19,34 @@
   - **`plan`** — `GrantPlan`: the ordered `ResourceRequest`s (with permanent `slot`
     indices) a launch binder walks.
   - **`package`** — combined-digest signing: `BLAKE3(manifest) ‖ BLAKE3(cwasm)`,
-    Ed25519-signed; `verify_package` and `verify_cwasm` (the manifest-less path
-    `lantern-runtime` uses).
+    Ed25519-signed; `verify_package` / `verify_cwasm` (the manifest-less path
+    `lantern-runtime` uses); and the `.lpkg` container
+    (`encode_package` / `decode_package`) — one distributable file holding the manifest,
+    the `.cwasm`, and the signature.
   - **`bind`** (feature `bind`) — assemble a `lantern_runtime::GrantManifest` from a
     `GrantPlan` + a binder's per-request `Bound::{Granted, Declined}` decisions, in
     declaration order.
-  - 21 tests (20 without `bind`). `cargo clippy --all-targets -D warnings` clean with and
-    without `--features bind`.
-- **`lantern-example-signer` is now manifest-driven** — its runner parses the app's
-  `lantern.capabilities.toml` via this crate, plans it, and binds the plan; the manifest
-  is the authority, not hard-coded Rust. (Its own repo — see
+  - **`build`** (feature `build`) + the **`lantern-sdk` CLI** — `lantern-sdk build
+    --manifest <toml> --component <wasm> --out <lpkg> [--seed <hex> | --ephemeral]`:
+    validates the manifest, checks the component imports **exactly** the `lantern:host/*`
+    interfaces the manifest declares (rejects undeclared imports *and* a manifest that
+    over-asks), AOT-compiles + signs (via `lantern-runtime/compiler`), and emits the
+    `.lpkg` + a `.pub` key file.
+  - 28 tests (`--features build`) / 22 (`bind`) / 21 (default). `cargo clippy
+    --all-targets -D warnings` clean in all three configs.
+- **`lantern-example-signer` runs a signed `.lpkg`** — `make` builds the component, runs
+  `lantern-sdk build` on it, and the runner (runtime-role only now — no `compiler`)
+  decodes + verifies the package, deserializes the `.cwasm`, and binds the manifest's
+  plan. The manifest is the authority end to end. (Its own repo — see
   `lantern-runtime/STATUS.md`.)
 - **Not in this crate** (RFC-0015 scope): the launch binder + consent UX
   (`lantern-shell`'s — this crate produces the `GrantPlan` it consumes); per-language
   binding ergonomics; installed-app manifest evolution.
 
 ## Next
-- The build/package CLI (`lantern-sdk build`): compile a component for `wasm32-wasip2`,
-  check its imports against `wit::declared_imports`, and emit the signed
-  `{ manifest, cwasm, signature }` package. Today the `lantern-example-signer` runner
-  does the compile+sign inline via `lantern-runtime::compiler`.
+- `lantern-sdk build` should also *drive* `cargo build --target wasm32-wasip2` (today it
+  takes a pre-built component path), and generate the component's WIT import `world` from
+  the manifest so the app author does not re-declare imports (WIT `world` composition).
 - `lantern-sdk manifest explain` — render a manifest exactly as `lantern-shell` will
   (RFC-0015 "Future possibilities").
 - TypeScript bindings (ADR-0001) — follows from WIT, later.

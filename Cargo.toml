@@ -10,6 +10,11 @@ publish = false
 name = "lantern_sdk"
 path = "src/lib.rs"
 
+[[bin]]
+name = "lantern-sdk"
+path = "src/bin/lantern-sdk.rs"
+required-features = ["build"]
+
 [dependencies]
 # The `lantern.capabilities.toml` parser. Tooling only — not TCB, not the runtime.
 toml = "0.8"
@@ -22,6 +27,9 @@ lantern-crypto = { git = "https://github.com/lantern-os/lantern-crypto", branch 
 # generate-world / plan / package) does not pull in a Wasm engine. `lantern-shell` and
 # host runners that need the helper enable it.
 bind = ["dep:lantern-runtime"]
+# The `build` module + the `lantern-sdk` CLI — AOT-compile + sign + package. Pulls in
+# Wasmtime + Cranelift (via `lantern-runtime/compiler`); build/packaging tooling only.
+build = ["bind", "lantern-runtime/compiler"]
 
 [dependencies.lantern-runtime]
 git = "https://github.com/lantern-os/lantern-runtime"
