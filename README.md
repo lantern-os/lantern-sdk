@@ -7,9 +7,12 @@ build, package, and run confined Wasm apps and agents.
 - **Language:** Rust for the core; TypeScript for web/tooling bindings ([ADR-0001](https://github.com/lantern-os/lantern-rfcs/blob/main/adr/0001-rust-as-primary-language.md)).
 - **System context:** [wiki/Runtime](https://github.com/lantern-os/lantern-docs/blob/main/wiki/Runtime.md), [wiki/Security](https://github.com/lantern-os/lantern-docs/blob/main/wiki/Security.md).
 
-> ⚠️ **Phase 0.** Design only; no code. See [`STATUS.md`](./STATUS.md).
+> **Phase 2.** SDK v0 exists: the `lantern.capabilities.toml` parser + validator, the
+> interface registry, WIT-`world` generation, the `GrantPlan`, `bind`, and combined-digest
+> package signing (RFC-0015/ADR-0020). See [`STATUS.md`](./STATUS.md).
 
 ## In this repo
+- `src/` — `manifest`, `registry`, `wit`, `plan`, `package`, `bind` (feature `bind`).
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md), [`THREAT_MODEL.md`](./THREAT_MODEL.md), [`STATUS.md`](./STATUS.md).
 
 ## Goal

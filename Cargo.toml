@@ -1,0 +1,29 @@
+[package]
+name = "lantern-sdk"
+version = "0.0.0"
+edition = "2021"
+description = "LanternOS developer SDK — capability manifest parsing, WIT-world generation, and packaging (RFC-0015/ADR-0020)"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+name = "lantern_sdk"
+path = "src/lib.rs"
+
+[dependencies]
+# The `lantern.capabilities.toml` parser. Tooling only — not TCB, not the runtime.
+toml = "0.8"
+# Combined-digest package signing: BLAKE3 + Ed25519, RFC-0007's ratified primitives.
+lantern-crypto = { git = "https://github.com/lantern-os/lantern-crypto", branch = "main" }
+
+[features]
+# The `bind` module — turns a `GrantPlan` + a binder's per-role decisions into a
+# `lantern_runtime::GrantManifest`. Off by default so the core SDK (parse / validate /
+# generate-world / plan / package) does not pull in a Wasm engine. `lantern-shell` and
+# host runners that need the helper enable it.
+bind = ["dep:lantern-runtime"]
+
+[dependencies.lantern-runtime]
+git = "https://github.com/lantern-os/lantern-runtime"
+branch = "main"
+optional = true
