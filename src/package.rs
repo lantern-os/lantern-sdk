@@ -7,6 +7,8 @@
 //! `deserialize` without holding the manifest, and lets `lantern-shell` verify the
 //! manifest it is about to render without pulling the whole `.cwasm`.
 
+use alloc::vec::Vec;
+
 use lantern_crypto::hash::{self, HASH_LEN};
 use lantern_crypto::signing::{self, SigningKey, PUBLIC_KEY_LEN, SIGNATURE_LEN};
 
@@ -99,27 +101,60 @@ pub struct Package {
 
 /// Parses a `.lpkg` blob. Structural only — the signature still needs verifying.
 pub fn decode_package(bytes: &[u8]) -> Result<Package, PackageError> {
-    let mut r = bytes;
-    let take = |r: &mut &[u8], n: usize| -> Result<Vec<u8>, PackageError> {
+    let parts = decode_package_ref(bytes)?;
+    Ok(Package {
+        manifest_bytes: parts.manifest_bytes.to_vec(),
+        cwasm_bytes: parts.cwasm_bytes.to_vec(),
+        signature: *parts.signature,
+    })
+}
+
+/// [`Package`], borrowed from the blob — no copy. What a confined `lantern-runtime`
+/// process uses: the `.lpkg` arrives in a `Frame` its launcher mapped read-only, and a
+/// `.cwasm` is hundreds of KiB of a heap that never frees. **Does not verify the
+/// signature** — [`PackageRef::verify`] does.
+pub struct PackageRef<'a> {
+    pub manifest_bytes: &'a [u8],
+    pub cwasm_bytes: &'a [u8],
+    pub signature: &'a [u8; SIGNATURE_LEN],
+}
+
+impl PackageRef<'_> {
+    /// [`verify_package`] over this package's own three parts.
+    pub fn verify(&self, public_key: &[u8; PUBLIC_KEY_LEN]) -> Result<(), PackageError> {
+        verify_package(self.manifest_bytes, self.cwasm_bytes, public_key, self.signature)
+    }
+}
+
+/// Parses a `.lpkg` blob in place. Structural only, exactly as [`decode_package`]: the
+/// blob must be the whole package, with nothing trailing.
+pub fn decode_package_ref(bytes: &[u8]) -> Result<PackageRef<'_>, PackageError> {
+    fn take<'a>(r: &mut &'a [u8], n: usize) -> Result<&'a [u8], PackageError> {
         if r.len() < n {
             return Err(PackageError::Malformed);
         }
         let (head, tail) = r.split_at(n);
         *r = tail;
-        Ok(head.to_vec())
-    };
+        Ok(head)
+    }
+    fn take_len(r: &mut &[u8]) -> Result<usize, PackageError> {
+        let raw: [u8; 4] = take(r, 4)?.try_into().map_err(|_| PackageError::Malformed)?;
+        Ok(u32::from_le_bytes(raw) as usize)
+    }
+
+    let mut r = bytes;
     if take(&mut r, 4)? != MAGIC {
         return Err(PackageError::Malformed);
     }
-    let mlen = u32::from_le_bytes(take(&mut r, 4)?.try_into().unwrap()) as usize;
+    let mlen = take_len(&mut r)?;
     let manifest_bytes = take(&mut r, mlen)?;
-    let clen = u32::from_le_bytes(take(&mut r, 4)?.try_into().unwrap()) as usize;
+    let clen = take_len(&mut r)?;
     let cwasm_bytes = take(&mut r, clen)?;
-    let signature: [u8; SIGNATURE_LEN] = take(&mut r, SIGNATURE_LEN)?.try_into().unwrap();
+    let signature = take(&mut r, SIGNATURE_LEN)?.try_into().map_err(|_| PackageError::Malformed)?;
     if !r.is_empty() {
         return Err(PackageError::Malformed);
     }
-    Ok(Package { manifest_bytes, cwasm_bytes, signature })
+    Ok(PackageRef { manifest_bytes, cwasm_bytes, signature })
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -131,8 +166,8 @@ pub enum PackageError {
     Malformed,
 }
 
-impl std::fmt::Display for PackageError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for PackageError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::BadSignature => write!(f, "package signature does not verify"),
             Self::Malformed => write!(f, "malformed .lpkg container"),
@@ -140,4 +175,4 @@ impl std::fmt::Display for PackageError {
     }
 }
 
-impl std::error::Error for PackageError {}
+impl core::error::Error for PackageError {}

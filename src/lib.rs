@@ -19,14 +19,26 @@
 //! - [`build`] (feature `build`) + the `lantern-sdk` CLI — validate, import-check,
 //!   AOT-compile, sign, and emit a `.lpkg` package.
 //!
+//! Only [`package`] is available without the default `std` feature: that build is
+//! `no_std` + `alloc`, for a confined `lantern-runtime` process that verifies the `.lpkg`
+//! its launcher hands it ([RFC-0018](https://github.com/lantern-os/lantern-rfcs/blob/main/rfcs/0018-confined-execution-port.md)).
+//!
 //! **Not in this crate:** the launch-time binder and consent UX (`lantern-shell`'s job —
 //! this crate fixes only the validated manifest it consumes and the `GrantPlan` /
 //! `GrantManifest` it produces), and any manifest-evolution / upgrade story.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
+#[cfg(feature = "std")]
 pub mod manifest;
 pub mod package;
+#[cfg(feature = "std")]
 pub mod plan;
+#[cfg(feature = "std")]
 pub mod registry;
+#[cfg(feature = "std")]
 pub mod wit;
 
 #[cfg(feature = "bind")]
@@ -35,8 +47,10 @@ pub mod bind;
 #[cfg(feature = "build")]
 pub mod build;
 
+#[cfg(feature = "std")]
 pub use manifest::{parse, Manifest, ManifestError};
+#[cfg(feature = "std")]
 pub use plan::GrantPlan;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests;
