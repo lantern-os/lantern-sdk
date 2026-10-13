@@ -39,6 +39,17 @@
   decodes + verifies the package, deserializes the `.cwasm`, and binds the manifest's
   plan. The manifest is the authority end to end. (Its own repo — see
   `lantern-runtime/STATUS.md`.)
+- **`package` builds `no_std` (2026-10-12)** — new default `std` feature gates
+  everything else (manifest parser, registry, WIT generation, `GrantPlan`; `toml` is now
+  optional); without it the crate is `no_std` + `alloc`, just the `.lpkg` container and its
+  signature check, and `lantern-crypto` is linked without its keystore backend. New
+  borrowed decoder **`decode_package_ref` / `PackageRef`** (`decode_package` is now built on
+  it) plus `PackageRef::verify`: zero-copy, for a confined `lantern-runtime` that reads its
+  guest's `.lpkg` from a launcher-mapped `Frame` and has a heap that never frees. That
+  runtime now verifies a real `lantern-sdk build` package before deserializing it, under
+  QEMU (see `lantern-runtime/STATUS.md`). 2 new tests (borrowing, trailing bytes, a
+  lying length header, a flipped `.cwasm` byte). 23 tests green, 27 with
+  `--features build`; clippy clean in std, `build`, and `no_std` riscv64.
 - **Not in this crate** (RFC-0015 scope): the launch binder + consent UX
   (`lantern-shell`'s — this crate produces the `GrantPlan` it consumes); per-language
   binding ergonomics; installed-app manifest evolution.

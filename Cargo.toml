@@ -17,16 +17,23 @@ required-features = ["build"]
 
 [dependencies]
 # The `lantern.capabilities.toml` parser. Tooling only — not TCB, not the runtime.
-toml = "0.8"
+toml = { version = "0.8", optional = true }
 # Combined-digest package signing: BLAKE3 + Ed25519, RFC-0007's ratified primitives.
-lantern-crypto = { git = "https://github.com/lantern-os/lantern-crypto", branch = "main" }
+# Only `hash` + `signing` are used — no keystore backend needed.
+lantern-crypto = { git = "https://github.com/lantern-os/lantern-crypto", branch = "main", default-features = false }
 
 [features]
+default = ["std"]
+# Everything but `package`: the manifest parser, registry, WIT generation, `GrantPlan`.
+# Off, this crate is `no_std` + `alloc` and is only the `.lpkg` container and its
+# signature check — what a confined `riscv64` `lantern-runtime` process links to verify
+# the package its launcher hands it (RFC-0018).
+std = ["dep:toml"]
 # The `bind` module — turns a `GrantPlan` + a binder's per-role decisions into a
 # `lantern_runtime::GrantManifest`. Off by default so the core SDK (parse / validate /
 # generate-world / plan / package) does not pull in a Wasm engine. `lantern-shell` and
 # host runners that need the helper enable it.
-bind = ["dep:lantern-runtime"]
+bind = ["std", "dep:lantern-runtime"]
 # The `build` module + the `lantern-sdk` CLI — AOT-compile + sign + package. Pulls in
 # Wasmtime + Cranelift (via `lantern-runtime/compiler`); build/packaging tooling only.
 build = ["bind", "lantern-runtime/compiler"]

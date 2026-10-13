@@ -247,6 +247,44 @@ mod package {
         assert!(matches!(decode_package(&blob[..blob.len() - 1]), Err(PackageError::Malformed)));
         assert!(matches!(decode_package(b"LPK9\0\0\0\0"), Err(PackageError::Malformed)));
     }
+
+    #[test]
+    fn the_borrowed_decoder_agrees_with_the_owned_one_and_borrows() {
+        use crate::package::{decode_package_ref, encode_package, PackageError};
+        let sig = [7u8; 64];
+        let blob = encode_package(MANIFEST, CWASM, &sig);
+        let p = decode_package_ref(&blob).unwrap();
+        assert_eq!(p.manifest_bytes, MANIFEST);
+        assert_eq!(p.cwasm_bytes, CWASM);
+        assert_eq!(p.signature, &sig);
+        // Zero-copy: the `.cwasm` slice points into the blob itself.
+        assert!(blob.as_ptr_range().contains(&p.cwasm_bytes.as_ptr()));
+
+        assert!(matches!(decode_package_ref(&blob[..blob.len() - 1]), Err(PackageError::Malformed)));
+        // A launcher-mapped Frame is zero-padded past the package: the caller must pass
+        // the exact length, never the whole mapping.
+        let mut padded = blob.clone();
+        padded.extend_from_slice(&[0u8; 16]);
+        assert!(matches!(decode_package_ref(&padded), Err(PackageError::Malformed)));
+        // A length header pointing past the end is malformed, not a panic.
+        let mut lying = blob.clone();
+        lying[4..8].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(matches!(decode_package_ref(&lying), Err(PackageError::Malformed)));
+    }
+
+    #[test]
+    fn package_ref_verify_rejects_a_flipped_cwasm_byte() {
+        use crate::package::{decode_package_ref, encode_package, sign_package, PackageError};
+        let key = SigningKey::from_random_bytes([9u8; SEED_LEN]);
+        let blob = encode_package(MANIFEST, CWASM, &sign_package(MANIFEST, CWASM, &key));
+        decode_package_ref(&blob).unwrap().verify(&key.verifying_key()).unwrap();
+
+        let mut tampered = blob.clone();
+        let last_cwasm_byte = blob.len() - 64 - 1;
+        tampered[last_cwasm_byte] ^= 1;
+        let p = decode_package_ref(&tampered).unwrap();
+        assert_eq!(p.verify(&key.verifying_key()), Err(PackageError::BadSignature));
+    }
 }
 
 // -------------------------------------------------------------------------------------
