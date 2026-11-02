@@ -50,6 +50,15 @@
   QEMU (see `lantern-runtime/STATUS.md`). 2 new tests (borrowing, trailing bytes, a
   lying length header, a flipped `.cwasm` byte). 23 tests green, 27 with
   `--features build`; clippy clean in std, `build`, and `no_std` riscv64.
+- **`manifest`, `registry` and `plan` build `no_std` (2026-11-02)** — new `manifest` feature
+  (`no_std` + `alloc`; `std` implies it), so a confined `lantern-runtime` reads a package's
+  manifest with the same parser and validator `lantern-sdk build` used, rather than a second
+  reader that could disagree about what a signed manifest says. `toml` goes 0.8 → 0.9
+  (`default-features = false`, `parse` + `serde`), the first version with `no_std` support.
+  New `parse_bytes` (UTF-8 check, then `parse`). New test: five 1 MiB pathologically nested
+  manifests return ordinary errors on a 1 MiB stack, half the confined runtime's. 25 tests
+  green, 29 with `--features build`; clippy clean in std, `build`, and `no_std` riscv64 with
+  and without `manifest`.
 - **Not in this crate** (RFC-0015 scope): the launch binder + consent UX
   (`lantern-shell`'s — this crate produces the `GrantPlan` it consumes); per-language
   binding ergonomics; installed-app manifest evolution.

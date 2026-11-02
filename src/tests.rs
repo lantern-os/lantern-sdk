@@ -1,6 +1,6 @@
 //! RFC-0015/ADR-0020 SDK v0 tests.
 
-use crate::manifest::{parse, ManifestError};
+use crate::manifest::{parse, parse_bytes, ManifestError};
 use crate::{plan::GrantPlan, wit};
 
 const GOOD: &str = r#"
@@ -136,6 +136,36 @@ fn wrong_shape_for_an_interface_is_rejected() {
 #[test]
 fn not_toml_is_rejected() {
     assert!(matches!(err("this is not = = toml"), ManifestError::Toml(_)));
+}
+
+#[test]
+fn parse_bytes_agrees_with_parse_and_rejects_non_utf8() {
+    assert_eq!(parse_bytes(GOOD.as_bytes()).unwrap(), parse(GOOD).unwrap());
+    assert!(matches!(parse_bytes(b"[app]\nname = \"\xff\""), Err(ManifestError::NotUtf8)));
+}
+
+/// A confined runtime parses a manifest as large as its package, on a 2 MiB stack.
+/// Nesting must end in an ordinary error, not a stack overflow: this runs on half that.
+#[test]
+fn pathological_nesting_is_an_error_not_a_stack_overflow() {
+    const DEPTH: usize = 1 << 20;
+    let sources = [
+        format!("a = {}", "[".repeat(DEPTH)),
+        format!("a = {}", "{a=".repeat(DEPTH)),
+        format!("{}{}", "a = ", "[".repeat(DEPTH) + &"]".repeat(DEPTH)),
+        format!("[{}]", "a.".repeat(DEPTH) + "a"),
+        format!("{} = 1", "a.".repeat(DEPTH) + "a"),
+    ];
+    std::thread::Builder::new()
+        .stack_size(1 << 20)
+        .spawn(move || {
+            for source in &sources {
+                assert!(parse(source).is_err());
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
 }
 
 // -------------------------------------------------------------------------------------
