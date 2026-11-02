@@ -59,6 +59,8 @@
   manifests return ordinary errors on a 1 MiB stack, half the confined runtime's. 25 tests
   green, 29 with `--features build`; clippy clean in std, `build`, and `no_std` riscv64 with
   and without `manifest`.
+- **`examples/resign.rs` (2026-11-02):** rebuilds a `.lpkg` around any manifest with a demo key,
+  skipping `lantern-sdk build`'s checks, for `lantern-boot/scripts/binder-matrix.sh`.
 - **Not in this crate** (RFC-0015 scope): the launch binder + consent UX
   (`lantern-shell`'s — this crate produces the `GrantPlan` it consumes); per-language
   binding ergonomics; installed-app manifest evolution.
