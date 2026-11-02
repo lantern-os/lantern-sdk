@@ -1,7 +1,10 @@
 //! The `lantern.capabilities.toml` model, parser, and validator (RFC-0015 §"Reference-level
 //! explanation", §"Validation rules").
 
-use std::fmt;
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::fmt;
 
 use crate::registry::{self, Shape};
 
@@ -38,6 +41,12 @@ pub struct LinkDecl {
 }
 
 const MAX_JUSTIFICATION: usize = 280;
+
+/// [`parse`] for a manifest as a package carries it: bytes, which must be UTF-8 (RFC-0015).
+/// Parsing authenticates nothing, so a caller holding a package verifies its signature first.
+pub fn parse_bytes(bytes: &[u8]) -> Result<Manifest, ManifestError> {
+    parse(core::str::from_utf8(bytes).map_err(|_| ManifestError::NotUtf8)?)
+}
 
 /// Parses and validates a `lantern.capabilities.toml` source string.
 pub fn parse(src: &str) -> Result<Manifest, ManifestError> {
@@ -274,6 +283,7 @@ fn looks_like_semver(s: &str) -> bool {
 /// the offending declaration.
 #[derive(Debug)]
 pub enum ManifestError {
+    NotUtf8,
     Toml(toml::de::Error),
     MissingApp,
     MissingField { context: String, field: String },
@@ -291,6 +301,7 @@ pub enum ManifestError {
 impl fmt::Display for ManifestError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NotUtf8 => write!(f, "not valid UTF-8"),
             Self::Toml(e) => write!(f, "not valid TOML: {e}"),
             Self::MissingApp => write!(f, "missing or malformed [app] table (needs `name` and `version`)"),
             Self::MissingField { context, field } => write!(f, "{context}: missing required field `{field}`"),
@@ -307,4 +318,4 @@ impl fmt::Display for ManifestError {
     }
 }
 
-impl std::error::Error for ManifestError {}
+impl core::error::Error for ManifestError {}

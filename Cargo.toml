@@ -16,19 +16,23 @@ path = "src/bin/lantern-sdk.rs"
 required-features = ["build"]
 
 [dependencies]
-# The `lantern.capabilities.toml` parser. Tooling only — not TCB, not the runtime.
-toml = { version = "0.8", optional = true }
+# The `lantern.capabilities.toml` parser. Not TCB. `no_std`-capable, so the SDK's build-time
+# validator and a confined runtime read a signed manifest with the same code. `serde` is
+# only what gates `toml::Table`; no derive, and nothing here serializes.
+toml = { version = "0.9", default-features = false, features = ["parse", "serde"], optional = true }
 # Combined-digest package signing: BLAKE3 + Ed25519, RFC-0007's ratified primitives.
 # Only `hash` + `signing` are used — no keystore backend needed.
 lantern-crypto = { git = "https://github.com/lantern-os/lantern-crypto", branch = "main", default-features = false }
 
 [features]
 default = ["std"]
-# Everything but `package`: the manifest parser, registry, WIT generation, `GrantPlan`.
-# Off, this crate is `no_std` + `alloc` and is only the `.lpkg` container and its
-# signature check — what a confined `riscv64` `lantern-runtime` process links to verify
-# the package its launcher hands it (RFC-0018).
-std = ["dep:toml"]
+# Tooling that needs a host: WIT generation today. Off, this crate is `no_std` + `alloc`:
+# the `.lpkg` container and its signature check, plus `manifest` if selected.
+std = ["manifest"]
+# The manifest parser + validator, registry, and `GrantPlan`, all `no_std` + `alloc`. What a
+# confined `riscv64` `lantern-runtime` process links to read the manifest of a package it
+# has already verified (RFC-0018).
+manifest = ["dep:toml"]
 # The `bind` module — turns a `GrantPlan` + a binder's per-role decisions into a
 # `lantern_runtime::GrantManifest`. Off by default so the core SDK (parse / validate /
 # generate-world / plan / package) does not pull in a Wasm engine. `lantern-shell` and

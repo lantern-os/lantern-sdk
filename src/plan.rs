@@ -2,6 +2,9 @@
 //! (`lantern-shell`, or a host runner) walks to obtain concrete capabilities and build a
 //! `lantern_runtime::GrantManifest` (RFC-0015 §"Compilation to `GrantManifest`").
 
+use alloc::string::String;
+use alloc::vec::Vec;
+
 use crate::manifest::{AppInfo, Manifest, ResourceDecl};
 
 /// One resource-scoped request the binder must resolve to a concrete object (or decline).
