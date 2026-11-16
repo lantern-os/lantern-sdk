@@ -7,7 +7,7 @@
 //! plan in declaration order and assembles the sparse `GrantManifest` from whatever the
 //! caller's closures return, so a caller cannot get the `open(slot)` indices wrong.
 
-use lantern_runtime::{GrantManifest, HostCapability, HostFile, MonotonicClock};
+use lantern_runtime::{GrantManifest, HostCapability, HostContext, HostFile, HostModel, MonotonicClock};
 
 use crate::plan::{GrantPlan, LinkRequest, ResourceRequest};
 
@@ -21,19 +21,23 @@ pub enum Bound<T> {
 
 /// Assembles a `GrantManifest` from `plan` and the caller's binding decisions.
 ///
-/// - `key` / `file` are called once per resource request, in declaration order, and
-///   return the minted [`HostCapability`] / [`HostFile`] or [`Bound::Declined`].
+/// - `key` / `file` / `model` / `context` are called once per resource request, in declaration order, and
+///   return the minted [`HostCapability`] / [`HostFile`] / [`HostModel`] or [`Bound::Declined`].
 /// - `clock` is called iff the plan requests `monotonic-clock`; returning `None` refuses
 ///   it (the component will then fail to instantiate — RFC-0014's link-scoped rule).
 pub fn bind(
     plan: &GrantPlan,
     mut key: impl FnMut(&ResourceRequest) -> Bound<HostCapability>,
     mut file: impl FnMut(&ResourceRequest) -> Bound<HostFile>,
+    mut model: impl FnMut(&ResourceRequest) -> Bound<HostModel>,
+    mut context: impl FnMut(&ResourceRequest) -> Bound<HostContext>,
     clock: impl FnOnce(&LinkRequest) -> Option<MonotonicClock>,
 ) -> GrantManifest {
     GrantManifest {
         keystore_keys: plan.keystore.iter().map(|r| into_opt(key(r))).collect(),
         filesystem_files: plan.filesystem.iter().map(|r| into_opt(file(r))).collect(),
+        inference_models: plan.inference.iter().map(|r| into_opt(model(r))).collect(),
+        identity_contexts: plan.identity.iter().map(|r| into_opt(context(r))).collect(),
         monotonic_clock: plan.monotonic_clock.as_ref().and_then(clock),
     }
 }

@@ -65,6 +65,10 @@
   (`lantern-shell`'s — this crate produces the `GrantPlan` it consumes); per-language
   binding ergonomics; installed-app manifest evolution.
 
+- **`inference` (2026-11-16, [RFC-0034](https://github.com/lantern-os/lantern-rfcs/blob/main/rfcs/0034-local-inference-and-a-file-assistant.md)/[ADR-0039](https://github.com/lantern-os/lantern-rfcs/blob/main/adr/0039-local-inference-and-a-file-assistant.md)):** the registry's `[[inference.model]]` (one op, `generate`), the manifest's and
+  plan's `inference`, its WIT import, and `bind`'s model closure. 26 tests.
+- **`identity` (2026-11-16, [RFC-0035](https://github.com/lantern-os/lantern-rfcs/blob/main/rfcs/0035-pairwise-network-identities.md)/[ADR-0040](https://github.com/lantern-os/lantern-rfcs/blob/main/adr/0040-pairwise-network-identities.md)):** `[[identity.context]]` (one op, `connect`), in the manifest, the plan, the WIT world and
+  `bind`.
 ## Next
 - `lantern-sdk build` should also *drive* `cargo build --target wasm32-wasip2` (today it
   takes a pre-built component path), and generate the component's WIT import `world` from

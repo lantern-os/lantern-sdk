@@ -28,8 +28,8 @@ pub enum Shape {
     Link,
 }
 
-/// The Phase 2 registry — the three interfaces `lantern-runtime` implements today
-/// (RFC-0014's `keystore` + `monotonic-clock`, RFC-0016's `filesystem`).
+/// The registry — the interfaces `lantern-runtime` implements today (RFC-0014's `keystore` + `monotonic-clock`,
+/// RFC-0016's `filesystem`, RFC-0034's `inference`, RFC-0035's `identity`).
 pub const REGISTRY: &[Interface] = &[
     Interface {
         name: "keystore",
@@ -40,6 +40,18 @@ pub const REGISTRY: &[Interface] = &[
         name: "filesystem",
         wit_import: "lantern:host/filesystem@0.1.0",
         shape: Shape::Resource { resource: "file", ops: &["read", "write"] },
+    },
+    // RFC-0034: the language model, resource-scoped like the others so a grant is one role, asked for and revoked alone.
+    Interface {
+        name: "inference",
+        wit_import: "lantern:host/inference@0.1.0",
+        shape: Shape::Resource { resource: "model", ops: &["generate"] },
+    },
+    // RFC-0035: a pairwise network identity, one context (a peer) a resource.
+    Interface {
+        name: "identity",
+        wit_import: "lantern:host/identity@0.1.0",
+        shape: Shape::Resource { resource: "context", ops: &["connect"] },
     },
     Interface {
         name: "monotonic-clock",

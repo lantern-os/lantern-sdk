@@ -17,6 +17,10 @@ pub struct Manifest {
     pub keystore: Vec<ResourceDecl>,
     /// `[[filesystem.file]]` entries, in file order.
     pub filesystem: Vec<ResourceDecl>,
+    /// `[[inference.model]]` entries, in file order (RFC-0034).
+    pub inference: Vec<ResourceDecl>,
+    /// `[[identity.context]]` entries, in file order (RFC-0035).
+    pub identity: Vec<ResourceDecl>,
     /// `[monotonic-clock]` — `Some` iff the table is present.
     pub monotonic_clock: Option<LinkDecl>,
 }
@@ -56,6 +60,8 @@ pub fn parse(src: &str) -> Result<Manifest, ManifestError> {
 
     let mut keystore = Vec::new();
     let mut filesystem = Vec::new();
+    let mut inference = Vec::new();
+    let mut identity = Vec::new();
     let mut monotonic_clock = None;
 
     for (key, value) in &root {
@@ -69,6 +75,8 @@ pub fn parse(src: &str) -> Result<Manifest, ManifestError> {
                 match iface.name {
                     "keystore" => keystore = decls,
                     "filesystem" => filesystem = decls,
+                    "inference" => inference = decls,
+                    "identity" => identity = decls,
                     other => {
                         // A new resource-scoped interface was added to the registry but
                         // not wired into this struct — fail loudly rather than silently
@@ -87,7 +95,7 @@ pub fn parse(src: &str) -> Result<Manifest, ManifestError> {
         }
     }
 
-    Ok(Manifest { app, keystore, filesystem, monotonic_clock })
+    Ok(Manifest { app, keystore, filesystem, inference, identity, monotonic_clock })
 }
 
 fn parse_app(root: &toml::Table) -> Result<AppInfo, ManifestError> {
