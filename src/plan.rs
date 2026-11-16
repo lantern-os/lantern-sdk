@@ -32,6 +32,10 @@ pub struct GrantPlan {
     pub keystore: Vec<ResourceRequest>,
     /// `filesystem.open(i)` requests.
     pub filesystem: Vec<ResourceRequest>,
+    /// `inference.open(i)` requests (RFC-0034).
+    pub inference: Vec<ResourceRequest>,
+    /// `identity.open(i)` requests (RFC-0035).
+    pub identity: Vec<ResourceRequest>,
     pub monotonic_clock: Option<LinkRequest>,
 }
 
@@ -42,6 +46,8 @@ impl Manifest {
             app: self.app.clone(),
             keystore: requests(&self.keystore),
             filesystem: requests(&self.filesystem),
+            inference: requests(&self.inference),
+            identity: requests(&self.identity),
             monotonic_clock: self
                 .monotonic_clock
                 .as_ref()

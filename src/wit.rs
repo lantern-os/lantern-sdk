@@ -23,6 +23,12 @@ pub fn declared_imports(manifest: &Manifest) -> Vec<&'static str> {
     if !manifest.filesystem.is_empty() {
         add("filesystem");
     }
+    if !manifest.inference.is_empty() {
+        add("inference");
+    }
+    if !manifest.identity.is_empty() {
+        add("identity");
+    }
     if manifest.monotonic_clock.is_some() {
         add("monotonic-clock");
     }

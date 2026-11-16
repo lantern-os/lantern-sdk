@@ -23,6 +23,11 @@ role          = "config"
 ops           = ["read"]
 justification = "Reads its config at startup."
 
+[[inference.model]]
+role          = "summaries"
+ops           = ["generate"]
+justification = "Writes a one-line summary of each receipt."
+
 [monotonic-clock]
 justification = "Stamps each receipt with a monotonic sequence number."
 "#;
@@ -179,6 +184,7 @@ fn declared_imports_are_exactly_the_declared_interfaces_sorted() {
         wit::declared_imports(&m),
         [
             "lantern:host/filesystem@0.1.0",
+            "lantern:host/inference@0.1.0",
             "lantern:host/keystore@0.1.0",
             "lantern:host/monotonic-clock@0.1.0",
         ]
@@ -206,7 +212,8 @@ fn generated_world_imports_exactly_the_declared_interfaces() {
 
 #[test]
 fn the_plan_numbers_slots_in_declaration_order() {
-    let GrantPlan { keystore, filesystem, monotonic_clock, .. } = parse(GOOD).unwrap().plan();
+    let GrantPlan { keystore, filesystem, inference, monotonic_clock, .. } = parse(GOOD).unwrap().plan();
+    assert_eq!((inference[0].slot, inference[0].role.as_str(), inference[0].ops.as_slice()), (0, "summaries", ["generate".to_string()].as_slice()));
     assert_eq!(keystore.iter().map(|r| r.slot).collect::<Vec<_>>(), [0, 1]);
     assert_eq!(keystore[0].role, "receipt-signing");
     assert_eq!(keystore[1].role, "vault-at-rest");
@@ -404,12 +411,20 @@ mod bind {
                 seen.borrow_mut().push(("filesystem", req.slot));
                 Bound::Declined
             },
+            |req| {
+                seen.borrow_mut().push(("inference", req.slot));
+                Bound::Declined
+            },
+            |req| {
+                seen.borrow_mut().push(("identity", req.slot));
+                Bound::Declined
+            },
             |_req| None::<MonotonicClock>,
         );
 
         assert_eq!(
             *seen.borrow(),
-            [("keystore", 0), ("keystore", 1), ("filesystem", 0)],
+            [("keystore", 0), ("keystore", 1), ("filesystem", 0), ("inference", 0)],
             "requests walked in declaration order",
         );
         assert_eq!(gm.keystore_keys.len(), 2);
