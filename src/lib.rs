@@ -35,6 +35,7 @@ extern crate alloc;
 
 #[cfg(feature = "manifest")]
 pub mod manifest;
+pub mod model;
 pub mod package;
 #[cfg(feature = "manifest")]
 pub mod plan;
